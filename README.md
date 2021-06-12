@@ -16,17 +16,23 @@
 
 ## Training
 The Mito training codes locate in samples, e.g., `run_train.py`
+--dataset:the directory of input
+--model: the path to store model parameters
 ```
 CUDA_VISIBLE_DEVICES=0,1,2,3 python coco.py train --ngpu=4 --name=cell-mito-resnet101 --dataset=data/cell/data/cell-mito-merge-downsample --model=checkpoint/cell_mito.h5
 ```
 
 The ER training code is `er-train.py`.
+--datadir: the directory of input
 ```
 python er-train.py train --type {$cell/tissue} --datadir {$DATA_DIR} --model UNET --batch_size {$BATCHSIZE} --learning_rate {$LR} --num_epochs {$EPOCH} 
 ```
 
 ## Analysis
+--datadir: the directory of input
+--outputdir: the directory of the results
+--resolution: the resolution of resized image
 ```
 python main_mito_{er/ld}.py --cfg config/{$config_file} --gpu {$GPU_IDs} --datadir {$DATA_DIR} --outputdir {$SAVEDIR} --resolution {Tissue=10, Cell=5} 
 ```
-Please contact Li Xiao(andrew.lxiao@gmail.com) or Shuxin Yang(yangshuxin19g@ict.ac.cn) for any problem with the code.
+Please contact Shuxin Yang(yangshuxin19g@ict.ac.cn) or Li Xiao(andrew.lxiao@gmail.com) for any problem with the code.
