@@ -516,3 +516,24 @@ def drew_instances(image, masks, colors=None,):
         mask = masks[:, :, i]
         masked_image = apply_mask(masked_image, mask, color)
     return masked_image
+
+
+def drew_dianjing_instances(image, masks, colors=None, color_id=None):
+    N = masks.shape[-1]
+    if not N:
+        print("\n*** No instances to display *** \n")
+
+    # Generate colors
+    count = color_id + 2
+    hsv = [(i / count, 1, 1.0) for i in range(count)]
+    colors = list(map(lambda c: colorsys.hsv_to_rgb(*c), hsv))
+    if color_id is None: 
+        color_id = 1
+
+    masked_image = image.astype(np.uint32).copy()
+    for i in range(N):
+        color = colors[color_id]
+        # Mask
+        mask = masks[:, :, i]
+        masked_image = apply_mask(masked_image, mask, color)
+    return masked_image

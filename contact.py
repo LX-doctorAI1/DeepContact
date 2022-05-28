@@ -1,11 +1,51 @@
+# -*- coding: utf-8 -*-
+# @Time    : 2021/1/31
+# @Author  : Li Xiao, Shuxin Yang
+# @Contact : aspenstars@qq.com, xiaoli@ict.ac.cn
+# @FileName: contact.py
 import cv2
 import numpy as np
 from copy import deepcopy
 from PIL import Image
-from utils.visualise import label2rgb, vis_heatmap
+from myutils.visualise import label2rgb, vis_heatmap
+
+def calContact(mito_pred, er_pred, image, px=3):
+    """计算contact
+        相交区域： C1 = M & E
+        Mito的边缘： MM = Canny(M)
+        Contact的线： C2 = C1 & MM
+    """
+    mito_pred = mito_pred.astype(np.uint8)
+    num_mito, mitos = cv2.connectedComponents(mito_pred)
+
+    num_cont, cont_len, mito_len = 0, 0, 0
+    cont_image = np.zeros(image.shape[:2])
+    # 每一个mito分开计算（因为有的会有多个接触点，直接计算可能会计算成多个contact）
+    for m in range(1, num_mito):
+        # 取出一个mito
+        M = (mitos == m)
+        # mito和ER的相交部分
+        C = M & er_pred
+        # Mito的边缘，Canny只能接受uint8数据类型，同时将图片转换为0-255范围
+        MM = cv2.Canny(M.astype(np.uint8)*255, 30, 100)
+        # Mito边缘和ER相交的部位
+        contact = C & MM
+        # 刚才转换了255，要转换回来
+        mito_len += MM.sum() / 255
+        length = contact.sum()
+        if length > 0:
+            cont_len += length
+            num_cont += 1
+            cont_image += contact
+
+    cont_image = cont_image.astype(np.bool)
+    vis = visualize(image, cont_image)
+
+    return num_mito, mito_len, cont_len, num_cont, vis
 
 
 def calContactDist(mito_pred, er_pred, image, px=3):
+    """Follow Yang Liu and Xiao Li"""
     mito_pred = deepcopy(mito_pred)
     er_pred = deepcopy(er_pred)
     image = deepcopy(image)
@@ -77,6 +117,7 @@ def visualize(image, mask):
 
 
 def calContactDist_range_10pix_min(mito_pred, er_pred, image, px=10):
+    """Follow Yang Liu and Xiao Li"""
     """mito_pred: 传入的是原题上剪切的mito，像素值小于255的是真实的mito，等于255的是背景
        er_pred: 传入的是二值图像，0为背景，1为er（输出后转换为255）
     """
@@ -163,6 +204,7 @@ def calContactDist_range_10pix_min(mito_pred, er_pred, image, px=10):
 
 
 def calContactDist_er_elongation(mito_pred, er_pred, image, px=10):
+    """Follow Yang Liu and Xiao Li"""
     """增加ER elongation
        mito_pred: 传入的是原题上剪切的mito，像素值小于255的是真实的mito，等于255的是背景
        er_pred: 传入的是二值图像，0为背景，1为er（输出后转换为255）
@@ -260,9 +302,9 @@ def calContactDist_er_elongation(mito_pred, er_pred, image, px=10):
 
 
 if __name__ == "__main__":
-    mito_pred = np.load("mito_pred.npy")
-    er_pred = np.load("er_pred.npy")
-    image = np.load("aug_image.npy")
+    mito_pred = np.load("/Users/aspenstars/Downloads/results/mito_pred.npy")
+    er_pred = np.load("/Users/aspenstars/Downloads/results/er_pred.npy")
+    image = np.load("/Users/aspenstars/Downloads/results/aug_image.npy")
 
     mito_num, mito_len, cont_len, cont_num, vis, er_len, distmap = calContactDist_range_10pix_min(mito_pred, er_pred, image)
     # mito_num1, mito_len1, cont_len1, cont_num1, vis1, er_len1, distmap1 = calContactDist_vertical(mito_pred, er_pred, image)

@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+# @Time    : 2020/6/13 5:32 下午
+# @Author  : 杨树鑫
+# @FileName: precess.py
 import os
 
 import PIL

@@ -1,11 +1,11 @@
 model: tem
 
-mitomodel: code/dj/my_original/checkpoint/tem_mito.h5
-ermodel: code/dj/my_original/checkpoint/tem_er.pth
+mitomodel: checkpoint/tem_mito.h5
+ermodel: checkpoint/tem_er.pth
 
 # 要处理的数据集JSON文件保存位置
-datadir: data/tissues/json/test/20210111_3Label_ER-Mito-LD
-#datadir: data/cell/json/test/202011_HBSSControl
+datadir: /data/yangshuxin/data/tissues/json/test/20210111_3Label_ER-Mito-LD
+#datadir: /data/yangshuxin/data/cell/json/test/202011_HBSSControl
 
 outputdir: ./results
 

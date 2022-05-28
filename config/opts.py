@@ -17,7 +17,7 @@ def parse_opt():
     parser.add_argument("-lm", "--ldmodel", default='',
                         help="LD模型的路径")
     parser.add_argument("-d", "--datadir", required=False,
-                        default='data/tissues/json/test/20210111_3Label_ER-Mito-LD',
+                        default='/data/yangshuxin/data/tissues/json/test/20210111_3Label_ER-Mito-LD',
                         help='要处理的数据集JSON文件保存位置')
     parser.add_argument("-o", "--outputdir", required=False,
                         default='./results',
