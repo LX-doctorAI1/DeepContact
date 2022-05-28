@@ -107,9 +107,9 @@ If you find the code or dataset helpful in your resarch, please cite the followi
 @article{Liu2022deepcontact,
   title={DeepContact: High throughput quantification of membrane contact site based on electron microscopy imaging},       
   author={Liqing Liu, Shuxin Yang, Yang Liu, Junjie Hu, Li Xiao and Tao Xu},
-  journal={Journal of Cell Biology},
+  journal={},
   pages={},
   year={2022},
-  publisher={Rockefeller University Press}
+  publisher={}
 }
 ```
