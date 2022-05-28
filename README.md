@@ -79,7 +79,7 @@ Author: Liqing Liu<sup>1†</sup>, Shuxin Yang<sup>2,5†</sup>, Yang Liu<sup>2,
     ```
  in your terminal. Note that before running the bash file, you should check if the data paths and other arguments are set correctly
 - The output images will be saved in `./results`
-- Typical results: (left:mitochondrial, middle: ER,  right: Contact, the original figure can be found in ./dataset/U2OS1_26.tif)
+- Typical results: (left:mitochondrial, middle: ER,  right: Contact, the original figure can be found in `./dataset/U2OS1_26.tif`)
 ![Results](figures/U2OS1_26.png)
 <!-- <br>
 <p align="center"><img width="800" src="figures/U2OS1_26.png"></p> -->
@@ -95,6 +95,7 @@ Author: Liqing Liu<sup>1†</sup>, Shuxin Yang<sup>2,5†</sup>, Yang Liu<sup>2,
 
 ## License
 This repository is released under the MIT License (refer to the LICENSE file for details).
+Please contact shuxin Yang(aspenstarss@gmail.com) or Li Xiao(andrew.lxiao@gmail.com) if you have any problem with the codes.
 
 ## Citation
 If you find the code or dataset helpful in your resarch, please cite the following paper:
