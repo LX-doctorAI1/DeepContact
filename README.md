@@ -2,7 +2,7 @@
 
 **DeepContact software** is the tensorflow/keras and Pytorch implementation for high throughput quantification of membrane contact site. This repository is developed based on the under review paper [**DeepContact: High throughput quantification of membrane contact site based on electron microscopy imaging**](https://).<br>
 
-Author: Liqing Liu<sup>1†</sup>, Shuxin Yang<sup>2,5†</sup>, Yang Liu<sup>2,5</sup>, Junjie Hu<sup>1,4*</sup>, Li Xiao<sup>2,5,6*</sup> and Tao Xu<sup>1,3,4*</sup>
+Author: Liqing Liu<sup>1†</sup>, Shuxin Yang<sup>2,5†</sup>, Yang Liu<sup>2,5</sup>,Xixia Li<sup>6<sup>, Junjie Hu<sup>1,4*</sup>, Li Xiao<sup>2,5,7*</sup> and Tao Xu<sup>1,3,4*</sup>
 
 <sup>1</sup>National Laboratory of Biomacromolecules, Institute of Biophysics, Chinese Academy of Sciences, Beijing, China. \
 <sup>2</sup>Key Laboratory of Intelligent Information Processing, Institute of Computing Technology, Chinese Academy of Sciences, Beijing, China.\
@@ -14,7 +14,7 @@ Author: Liqing Liu<sup>1†</sup>, Shuxin Yang<sup>2,5†</sup>, Yang Liu<sup>2,
 <sup>*</sup>Correspondence to: xutao@ibp.ac.cn; xiaoli@ict.ac.cn; huj@ibp.ac.cn.
 
 ## Abstract
-> Membrane contact site (MCS)-mediated organelle interactions plays essential roles in the cell. Quantitative analysis of the MCS reveals vital clues for cellular responses under various physiological and pathological conditions. However, an efficient tool is yet lacking. Here, we developed “DeepContact”, a deep learning protocol for optimizing organelle segmentation and contact analysis based on label-free electron microscopy (EM). DeepContact presents high efficiency and flexibility in interactive visualizations, accommodating new morphologies of organelles and recognizing contacts in versatile width ranges, which enables statistical analysis of various types of MCSs in multiple systems. DeepContact revealed the importance in keeping native topological organization. Furthermore, it profiled previously unidentified coordinative rearrangements of MCS types in combined nutritional conditionings of cultured cells. DeepContact also unveiled a subtle wave of ER-mitochondrial entanglement in the Sertoli cell during the seminiferous epithelial cycle, indicating its potential in bridging MCS dynamics to physiological and pathological processes. 
+> Membrane contact site (MCS)-mediated organelle interactions plays essential roles in the cell. Quantitative analysis of the MCS reveals vital clues for cellular responses under various physiological and pathological conditions. However, an efficient tool is yet lacking. Here, we developed “DeepContact”, a deep learning protocol for optimizing organelle segmentation and contact analysis based on label-free electron microscopy (EM). DeepContact presents high efficiency and flexibility in interactive visualizations, accommodating new morphologies of organelles and recognizing contacts in versatile width ranges, which enables statistical analysis of various types of MCSs in multiple systems. DeepContact profiled previously unidentified coordinative rearrangements of MCS types in combined nutritional conditionings of cultured cells. DeepContact also unveiled a subtle wave of ER-mitochondrial entanglement in the Sertoli cell during the seminiferous epithelial cycle, indicating its potential in bridging MCS dynamics to physiological and pathological processes.
 
 ## Contents
 - [Environment](#environment)
