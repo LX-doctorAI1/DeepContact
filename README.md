@@ -94,7 +94,7 @@ Author: Liqing Liu<sup>1†</sup>, Shuxin Yang<sup>2,5†</sup>, Yang Liu<sup>2,
 - Model weights will be saved in `./logs` by default
 
 ## License
-This repository is released under the [MIT](LICENSE.txt) License (refer to the LICENSE file for details).
+This repository is released under the [MIT](LICENSE) License (refer to the LICENSE file for details).
 
 Please contact shuxin Yang(aspenstarss@gmail.com) or Li Xiao(andrew.lxiao@gmail.com) if you have any problem with the codes.
 
