@@ -34,43 +34,64 @@ Author: Liqing Liu<sup>1†</sup>, Shuxin Yang<sup>2,5†</sup>, Yang Liu<sup>2,
 - segmentation-models-pytorch 0.1.0
 - catalyst 20.5.1
 - GPU: >= GeForce GTX 1080Ti
+- pycococreator:(only for training) 
+    ```
+    pip install -r requirements.txt
+    pip install git+git://github.com/waspinator/pycococreator.git@0.2.0
+    ```
 
 ## File structure
-- `./checkpoint`: place pre-trained mito/er models here for testing
+- `./checkpoint`: place pre-trained mitochondrial/er models here for testing
 - `./config`: the config file for testing
 - `./dataset`: the default path for training data and testing data
-    - `./dataset/mito` The augmented data for training mito model. It follows MS COCO format.
-    - `./dataset/er` The augmented data for training mito model.
-- `./mrcnn`: the adaptive MaskRCNN source code. The mito model is adapted from MaskRCNN.
+    - `./dataset/mito_train` The augmented data for training mitochondrial model. It follows MS COCO format.
+    - `./dataset/er_train` The augmented data for training er model.
+- `./DeeContact_Amira`: DeepContact's extension for Amira 3D software
+- `./mrcnn`: the adaptive MaskRCNN source code. The mitochondrial model is adapted from MaskRCNN.
 - `./myutils`: util functions for DeepContact project.
-- `./samples`: training for mito data.
-    - `coco/coco.py`:  training a new data: `python coco.py train --dataset=/path/to/mito_data/ --model=coco`
+- `./samples`: training for mitochondrial data.
+    - `coco/coco.py`:  training a new data: 
+    ```
+    python coco.py train --dataset=/path/to/mito_data/ --model=coco
+    ```
 - `./add_er.py`: preprocess er data for training. Details see the Args in the file.
-- `./add_mito.py`: preprocess mito data for training. Details see the Args in the file.
-- `./contact.py`: calculate contact between mito and er.
-- `./er_train.py`: training for mito data. Details see the Args in the file.
-- `./main_predict_mito_er_10px.py`: analysis the membrane contact site
-    - method: `python main_predict_mito_er_10px.py --cfg=config/cell_mito.yml -d=/path/to/data/ --gpu=0`
-
+- `./add_mito.py`: preprocess mitochondrial data for training. Details see the Args in the file.
+- `./contact.py`: calculate contact between mitochondrial and er.
+- `./er_train.py`: training for mitochondrial data. Details see the Args in the file.
+- `./main_predict_mito_er_10px.py`: analysis the membrane contact site between mitochondrial and er
+    - method: 
+    ```
+    python main_predict_mito_er_10px.py --cfg=config/cell_mito_er.yml -d=/path/to/data/ --gpu=0
+    ```
+- `./main_predict_mito_ld_10px.py`: analysis the membrane contact site between mitochondrial and ld
+    - method: 
+    ```
+    python main_predict_mito_ld_10px.py --cfg=config/cell_mito_ld.yml -d=/path/to/data/ --gpu=0
+    ```
+- `./precess.py`: util functions for DeepContact project.
 
 ## Test pre-trained models
-- Download [pre-trained models](https://cloud.189.cn/web/share?code=6FFr6rRFfEru) (via code: ts1d) of Mito/ER model and place them in `./checkpoint/`
+- Download [pre-trained models](https://doi.org/10.6084/m9.figshare.19845940.v1) of Mitochondrial/ER model and place them in `./checkpoint/`
 - Open your terminal and cd to `deepcontact`
-- Run `python main_predict_mito_er_10px.py --cfg=config/cell_mito.yml -d=/path/to/data/ --gpu=0` in your terminal. Note that before running the bash file, you should check if the data paths and other arguments are set correctly
-- The output images will be saved in `--results`
-- Typical results:
+- Run 
+    ```
+    python main_predict_mito_er_10px.py --cfg=config/cell_mito_er.yml -d=/path/to/data/ --gpu=0
+    ```
+ in your terminal. Note that before running the bash file, you should check if the data paths and other arguments are set correctly
+- The output images will be saved in `./results`
+- Typical results: (left:mitochondrial, middle: ER,  right: Contact)
 ![Results](figures/U2OS1_26.png)
 <!-- <br>
 <p align="center"><img width="800" src="figures/U2OS1_26.png"></p> -->
 
 ## Train a new model
-- Data for training: You can train a new DeepContact model using [microscopy imaging](https://) or your own datasets. Note that you'd better divide the dataset of each specimen into training part and validation/testing part before training, so that you can test your model with the preserved validation/testing data
+- Data for training: You can train a new DeepContact model using [microscopy imaging](https://doi.org/10.6084/m9.figshare.19898404.v1) or your own datasets. Note that you'd better divide the dataset of each specimen into training part and validation/testing part before training, so that you can test your model with the preserved validation/testing data
 - Data preprocess: run `./add_er.py` and `./add_mito.py` to creat image patch pairs of datasets. Before running, you should check image paths and some parameters following the instructions in `./add_er.py` and `./add_mito.py`. After running, the augumented data is saved in `./dataset/` by default
 - DeepContact's Mitochondrion model:
     - Run `python ./sample/coco/coco.py train --dataset=/path/to/mito_data/ --model=coco` in your terminal to train a new DeepContact's Mitochondrion model. Similar to testing, before running the bash file, you should check if the data paths and the arguments are set correctly
     - Run ``python er_train.py --commod=train --type=cell --datadir=/path/to/er_data/ --gpu=0`` in your terminal to train a new DeepContact's ER model. Similar to testing, before running the bash file, you should check if the data paths and the arguments are set correctly
 - You can run `tensorboard --logdir [save_weights_dir]` to monitor the training process via tensorboard. If the validation loss isn't likely to decay any more, you can use early stop strategy to end the training
-- Model weights will be saved in `./checkpoint/` by default
+- Model weights will be saved in `./logs` by default
 
 ## License
 This repository is released under the MIT License (refer to the LICENSE file for details).
@@ -81,9 +102,9 @@ If you find the code or dataset helpful in your resarch, please cite the followi
 @article{Liu2022deepcontact,
   title={DeepContact: High throughput quantification of membrane contact site based on electron microscopy imaging},       
   author={Liqing Liu, Shuxin Yang, Yang Liu, Junjie Hu, Li Xiao and Tao Xu},
-  journal={},
+  journal={Journal of Cell Biology},
   pages={},
-  year={},
-  publisher={}
+  year={2022},
+  publisher={Rockefeller University Press}
 }
-Please contact Shuxin Yang(yangshuxin19g@ict.ac.cn) or Li Xiao(andrew.lxiao@gmail.com) for any problem with the code.
+```
