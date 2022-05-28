@@ -98,6 +98,9 @@ This repository is released under the MIT License (refer to the LICENSE file for
 
 Please contact shuxin Yang(aspenstarss@gmail.com) or Li Xiao(andrew.lxiao@gmail.com) if you have any problem with the codes.
 
+## AMRIA version of DeepContact
+To enable more users access to DeepContact, we provide two ways of using the software. The first choice was for users who can employ our models and algorisms directly by programming, which would require professions in computing. The other is to incorporate DeepContact into AMIRA(`https://www.thermofisher.cn/cn/en/home/electron-microscopy/products/software-em-3d-vis/amira-software.html`), a popular commercial software for electron microscopic image analysis. We have documented detailed the installation and implementation DeepContact on AMIRA. See `./DeepContact_Tutorial.pdf`.  
+
 ## Citation
 If you find the code or dataset helpful in your resarch, please cite the following paper:
 ```
