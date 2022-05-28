@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module name="Deep Contact Prediction" connectionExpandedByDefault="true">
+
+    <group name="Inputs" expandedByDefault="true">
+        <port portName="data"/>
+        <port portName="dataBatch"/>
+        <port portName="dataDirInfo"/>
+        <port portName="dataDir"/>
+    </group>
+
+    <group name="Outputs" expandedByDefault="true">
+        <port portName="outputSave"/>
+        <port portName="outputInfo"/>
+        <port portName="outputDir"/>
+    </group>
+
+    <group name="Args" expandedByDefault="true">
+        <port portName="argsDataType"/>
+        <port portName="argsResolution"/>
+        <port portName="argsCropsize"/>
+    </group>
+    
+    <group name="Model" expandedByDefault="true">
+        <port portName="modelArchitecture"/>
+        <port portName="modelWeights"/>
+        <port portName="modelInfo"/>
+    </group>
+
+    
+
+</module>

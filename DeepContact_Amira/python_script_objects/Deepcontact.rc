@@ -1,0 +1,14 @@
+#############################################################
+# .rc for pyscro ...
+#############################################################
+
+module -name "Deep Contact Prediction" \
+    -language "python" \
+    -file "share/python_script_objects/Deepcontact.pyscro" \
+    -primary "HxUniformScalarField3" \
+    -package "py_core" \
+    -category "AI" \
+    -xml "Deepcontact_config.xml" \
+    -color $objectsColorsPythonScriptObject \
+    -icon "TVDefScriptObject" \
+    -customHelp "DeepLearningPrediction.html"

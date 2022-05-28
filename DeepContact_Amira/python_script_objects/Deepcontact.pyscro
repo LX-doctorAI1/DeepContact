@@ -1,0 +1,584 @@
+import os
+import sys
+
+AVIZO_LOCATION = hx_paths.install_dir
+DEEPCONTACT_LOCATION = os.path.abspath(
+    os.path.join(AVIZO_LOCATION, "share", "python_modules", "Deepcontact"))
+sys.path.append(DEEPCONTACT_LOCATION)
+
+SEM_MITO = os.path.join(DEEPCONTACT_LOCATION, 'checkpoint', 'sem_mito.h5')
+SEM_ER = os.path.join(DEEPCONTACT_LOCATION, 'checkpoint', 'sem_er.pth')
+TEM_MITO = os.path.join(DEEPCONTACT_LOCATION, 'checkpoint', 'tem_mito.h5')
+TEM_ER = os.path.join(DEEPCONTACT_LOCATION, 'checkpoint', 'tem_er.pth')
+CELL_MITO = os.path.join(DEEPCONTACT_LOCATION, 'checkpoint', 'cell_mito.h5')
+CELL_ER = os.path.join(DEEPCONTACT_LOCATION, 'checkpoint', 'cell_er.pth')
+
+from _hx_core import hx_progress
+from _hx_core import _tcl_interp
+
+os.environ["GIT_PYTHON_REFRESH"] = "quiet"
+import cv2
+import pandas as pd
+from copy import deepcopy
+import numpy as np
+import warnings
+warnings.filterwarnings('ignore')
+import skimage
+import time
+
+import torch
+import tensorflow as tf
+
+from catalyst.dl import SupervisedRunner
+from catalyst.dl import utils as cutils
+import segmentation_models_pytorch as smp
+import albumentations as albu
+
+from mrcnn import model as modellib
+from mrcnn import visualize
+
+from contact import calContactDist_er_elongation
+from precess import label2rgb
+from config.mrcnn_config import MitochondrionInferenceConfig
+from myutils.utils import AverageMeter
+from myutils.dataset import MitochondrionDataset
+
+
+class Contact(object):
+    def __init__(self, name, n=8):
+        self.name = name
+        self.n = n
+        self.meters = [AverageMeter(f'{i}') for i in range(n)]
+
+    def update(self, res, n=1):
+        for i, v in enumerate(res):
+            self.meters[i].update(v, n)
+
+    def get_value(self):
+        return [m.avg for m in self.meters]
+
+
+class DistMap():
+    def __init__(self, name, n):
+        self.n = n
+        self.name = name
+        self.meters = [AverageMeter(f'dist_{i}') for i in range(n + 1)]
+
+    def update(self, dists, n=1):
+        for i, dist in enumerate(dists):
+            self.meters[i].update(dist, n)
+
+    def get_value(self):
+        return [m.avg for m in self.meters]
+    
+    
+class MyRunner(SupervisedRunner):
+    @torch.no_grad()
+    def forward(self, model, batch, **kwargs):
+        """
+        Args:
+            batch (Mapping[str, Any]): dictionary with data batches
+                from DataLoaders.
+            **kwargs: additional parameters to pass to the model
+        """
+        self.model = model
+        output = self._process_input(batch, **kwargs)
+        output = self._process_output(output)
+        return output
+
+    def _process_input_str(self, batch, **kwargs):
+        output = self.model(batch[self.input_key], **kwargs)
+        return output
+
+
+def get_transforms(resolution):
+    # Cell图片需要调整分辨率到10nm
+    crop_size = round(1024 * 10.0 / resolution)
+    process_size = 1024
+    # print('crop size', crop_size)
+    transforms = albu.Compose([albu.RandomCrop(crop_size, crop_size),
+                               albu.Resize(process_size, process_size)])
+    er_transforms = albu.Compose([albu.Normalize(),
+                                  albu.pytorch.ToTensorV2()])
+    return transforms, er_transforms
+
+
+def load_mito_model(mito_model_file):
+    config = MitochondrionInferenceConfig()
+    mito_model = modellib.MaskRCNN(mode="inference", config=config,
+                                   model_dir='.')
+    
+    mito_model.load_weights(mito_model_file, by_name=True)
+
+    return mito_model
+
+
+def load_er_model(er_model_file):
+    ENCODER_WEIGHTS, ENCODER_NAME = 'instagram', 'resnext101_32x8d'
+    er_model = smp.FPN(encoder_name=ENCODER_NAME, encoder_weights=ENCODER_WEIGHTS, classes=1)
+    er_model.load_state_dict(torch.load(er_model_file, map_location=torch.device('cpu'))["model_state_dict"])
+
+    return er_model
+
+
+def crop_pm(image, mask):
+    for i in range(3):
+        image[:, :, i][mask == 0] = 255
+    return image
+
+
+def predict_er(runner, model, er_batch, threshold=None):
+    try:
+        threshold = 0.3
+    except:
+        assert threshold, "threshold not be None"
+
+    er_res = runner.forward(model=model, batch=er_batch)
+
+    logits = er_res["logits"].cpu()
+    er_pred = cutils.detach(logits[0].sigmoid() > threshold).astype(np.int32).squeeze(0)
+
+    return er_pred
+
+
+def construct_mito_pred(image, mito_pred_r, er_pred):
+    mask = mito_pred_r['masks']
+    mito_pred = np.zeros((mask.shape[0], mask.shape[1]))
+
+    areas, perimeters, ratio1s, ratio2s = [], [], [], []
+    for i in range(mask.shape[2]):
+        tmp = np.array(mask[:, :, i]).astype('int32')
+        total_area = tmp.sum()
+        if total_area == 0: continue
+        overlap = er_pred * tmp
+        if overlap.sum() / total_area < 0.5:
+            mito_pred += tmp
+
+        # 另外要求计算的参数
+        contour = cv2.Canny(tmp.astype(np.uint8) * 255, 30, 100)
+        perimeter = contour.sum() / 255
+
+        areas.append(total_area)
+        perimeters.append(perimeter)
+        ratio1s.append(total_area / perimeter)
+        ratio2s.append(perimeter * perimeter / (12.56 * total_area))
+
+    image[mito_pred < 1] = 255
+
+    return image, np.mean(ratio1s), np.mean(ratio2s)
+
+
+def my_visualize(image, mito_pred, er_pred, cont_image, output_name=None):
+    vis_mito = visualize.drew_instances(image, mito_pred['masks']).astype(np.uint8)
+    vis_er = label2rgb(er_pred, 2, img=image)
+
+    if output_name:
+        vis_img = np.concatenate((vis_mito, vis_er, cont_image), axis=1)
+        cv2.imwrite(output_name, vis_img)
+
+    return [vis_mito, vis_er, cont_image]
+    
+
+def save_res(result, result_dist, output_dir):
+    d = {'File_name': [], 'Mito_number': [], 'Contact_number': [], 'Mito_length': [],
+         'Contact_length': [], 'Ratio_number': [], 'Ratio_length': [], 'ER_Length': [],
+         'ER_Elongation': [], 'Area/Perimeter': [], 'Form_Factor': []}
+    LABLE = ['Mito_number', 'Mito_length', 'Contact_length', 'Contact_number',
+             'ER_Length', 'ER_Elongation', 'Area/Perimeter', 'Form_Factor']
+    for name in result:
+        r = result[name]
+        d['File_name'].append(r.name)
+        res = r.get_value()
+        for label, v in zip(LABLE, res):
+            d[label].append(v)
+        d['Ratio_number'].append(res[3] / res[0])
+        d['Ratio_length'].append(res[2] / res[1])
+
+
+    df = pd.DataFrame.from_dict(d)
+    df = df.sort_values(by=['File_name'])
+    df.loc[len(df.index)] = ['Mean'] + df.mean().to_list()
+    output_filename = os.path.join(output_dir, 'result.csv')
+    df.to_csv(output_filename, index=False)
+
+    dists = {'File_name': []}
+    for name in result_dist:
+        dists['File_name'].append(name)
+        dist = result_dist[name].get_value()
+        mito_len = result[name].meters[1].avg
+        for i in range(result_dist[name].n + 1):
+            if f'dist_{i}' not in dists:
+                dists[f'dist_{i}'] = []
+            dists[f'dist_{i}'].append(dist[i] / mito_len)
+
+    df = pd.DataFrame.from_dict(dists)
+    df = df.sort_values(by=['File_name'])
+    df.loc[len(df.index)] = ['Mean'] + df.mean().to_list()
+    dist_filename = os.path.join(output_dir, 'result_dist.csv')
+    df.to_csv(dist_filename, index=False)
+
+    # print("Result Dir:", output_filename)
+
+    
+class DeepContact(PyScriptObject):
+    """This class instanciates a deepcontact model and applies it on an input image.
+    """
+
+    def __init__(self):
+        """Compute module initialization : define the compute modules ports
+        """
+
+        self._arch_ext = '.json'
+
+        # Hierarchical Data Format version 5 weight files extensions
+        self._PTH_EXT = '.pth'
+        self._H5_EXT = '.h5'
+
+        self._PYTHON_EXT = '.py'
+
+        # The multiple factor for tiling. Tile dimension must be
+        # n*_multiple_factor, n is an integer. The 16 value has been chosen
+        # according to the unet maxpooling layers number (2^4)
+        self._multiple_factor = 16
+        self._minimal_tile_size = 64
+        # To reduce tile border artefact, each tile is padded using input data.
+        self._tile_padding_neighborhood = 256
+        # Bool to know if any port is new. It's limited to the input data but
+        # can be expand to any ports
+        self.__is_new = False
+
+        # Input data
+        self.data.valid_types = ['HxUniformScalarField3']
+        self.data_batch = HxPortButtonMenu(self, 'dataBatch', 'Single/Batch')
+        self.data_batch.menus = [HxPortButtonMenu.Menu(options = ["Single", "Batch"])]
+        self.data_batch.menus[0].selected = 0
+
+        self.data_dir_info = HxPortInfo(self, 'dataDirInfo', "Information")
+        self.data_dir_info.visible = False
+        self.data_dir_info.text = "You should select a folder to process."
+        self.data_dir = HxPortFilename(self, 'dataDir', "Data Folder")
+        self.data_dir.mode = HxPortFilename.LOAD_DIRECTORY
+        self.data_dir.visible = False
+        
+        # Output
+        self.output_to_dir = HxPortButtonMenu(self, 'outputSave', 'Save to folder')
+        self.output_to_dir.menus = [HxPortButtonMenu.Menu(options = ["No", "Yes"])]
+        self.output_to_dir.menus[0].selected = 0
+
+        self.output_dir_info = HxPortInfo(self, 'outputInfo', "Information")
+        self.output_dir_info.visible = False
+        self.output_dir_info.text = "You should select a folder to save the results."
+        self.outputdir = HxPortFilename(self, 'outputDir', "Output Folder")
+        self.outputdir.mode = HxPortFilename.SAVE_DIRECTORY
+        self.outputdir.visible = False
+
+        # Model path
+        self.mito_weight = HxPortFilename(self, 'modelArchitecture', "Mito Weight File")
+        self.mito_weight.mode = HxPortFilename.EXISTING_FILE
+        self.er_weight = HxPortFilename(self, 'modelWeights', "ER Weight File")
+        self.er_weight.mode = HxPortFilename.EXISTING_FILE
+        
+        # Args
+        self.data_type = HxPortButtonMenu(self, 'argsDataType', 'Data Type')
+        self.data_type.menus = [HxPortButtonMenu.Menu(options = ["Tissue TEM", 
+                                                                 "Tissue SEM", 
+                                                                 "Cell"])]
+        self.data_type.menus[0].selected = 2
+        self.crop_size = HxPortIntTextN(self, 'argsCropsize', 'Crop Size')
+        self.resolution = HxPortFloatTextN(self, 'argsResolution', 'Resolution')
+        
+        self.model_loaded = False
+        self.mito_model = None
+        self.er_model = None
+        self.myrunner = None
+        
+        self.port_do_it = HxPortDoIt(self, 'apply', 'Apply')
+
+        self.mcp = {}
+
+    def update(self):
+        """Update the ports
+        """
+        if self.data.is_new:
+            self.__is_new = True
+
+        # if not self.data.source():
+        #     return
+
+        # 处理一个文件还是一批文件的Toggle
+        is_batch = self.data_batch.menus[0].selected
+        
+        if is_batch == 1:
+            self.data_dir.visible = True
+            self.data_dir_info.visible = True
+            self.output_to_dir.menus[0].selected = 1
+        else:
+            self.data_dir.visible = False
+            self.data_dir_info.visible = False
+        
+        # 是否保存结果到文件夹
+        is_output = self.output_to_dir.menus[0].selected
+        if is_output == 1:
+            self.outputdir.visible = True
+            self.output_dir_info.visible = True
+        else:
+            self.outputdir.visible = False
+            self.output_dir_info.visible = False
+            
+        # 数据类型的Toggle
+        data_type_id = self.data_type.menus[0].selected
+        self.crop_size.texts[0].enabled = True
+        if data_type_id == 0:
+            self.model_type = 'tem'
+            if self.resolution.texts[0].value == 0:
+                self.resolution.texts[0].value = 10
+                self.crop_size.texts[0].value = 1024
+            
+            self.mito_weight.filenames = TEM_MITO
+            self.er_weight.filenames = TEM_ER
+        elif data_type_id == 1:
+            self.model_type = 'sem'
+            if self.resolution.texts[0].value == 0:
+                self.resolution.texts[0].value = 10
+                self.crop_size.texts[0].value = 1024
+            
+            self.mito_weight.filenames = SEM_MITO
+            self.er_weight.filenames = SEM_ER
+        elif data_type_id == 2:
+            self.model_type = 'cell'
+            if self.resolution.texts[0].value == 0:
+                self.resolution.texts[0].value = 5
+                self.crop_size.texts[0].value = 2048
+            
+            self.mito_weight.filenames = CELL_MITO
+            self.er_weight.filenames = CELL_ER
+        
+        if self.resolution.texts[0].value != 0: 
+            crop_size = round(1024 * 10.0 / self.resolution.texts[0].value)
+            self.crop_size.texts[0].value = crop_size
+        self.crop_size.texts[0].enabled = False
+            
+
+    def compute(self):
+        """Compute function, launched on apply button selection
+        """
+
+        # if environment_status != DeepLearningEnvironmentStatus.OK:
+        #     return
+
+        if not self.port_do_it.was_hit:
+            return
+
+        if not self.data.source():
+            print("Please select an input data")
+            return
+
+        if self.mito_weight.filenames is None or not os.path.isfile(self.mito_weight.filenames):
+            print("Please select a valid Mito model file")
+            hx_message.error("Please select a valid Mito weight file")
+            return
+
+        if self.er_weight.filenames is None or not os.path.isfile(self.er_weight.filenames):
+            print("Please select a valid weight file")
+            hx_message.error("Please select a valid ER weight file")
+            return
+        
+        
+        # 必须选择一种数据类型
+        is_output = self.output_to_dir.menus[0].selected
+        is_batch = self.data_batch.menus[0].selected
+        if is_batch and (self.data_dir.filenames is None or not os.path.isdir(self.data_dir.filenames)):
+            hx_message.error("Please select a valid data folder.")
+            return
+        
+        if is_batch and (is_output == 0 or (self.outputdir.filenames is None)):
+            hx_message.error("Please select a valid output folder.")
+            return
+        
+        if is_output and (self.outputdir.filenames is None):
+            hx_message.error("Please select a valid output folder.")
+            return
+        
+        # 是否保存输出结果到文件夹
+        if is_output:
+            output_dir = self.outputdir.filenames
+        
+        # 是否处理一个文件夹里的批量数据
+        if is_batch:
+            datadir = self.data_dir.filenames
+            dataset_val = MitochondrionDataset()
+            dataset_val.load_Mitochondrion(dataset_dir=datadir, subset='')
+            dataset_val.prepare()
+
+        # Amira自带的数据读取接口
+        input_array = self.data.source().get_array()
+
+        if input_array.shape[2] == 1:
+            image = np.concatenate((input_array, input_array, input_array), axis=2)
+        else:
+            image = input_array
+        ret = hx_message.confirmations("Contact analysis will take a long time.\n \
+            Do you want to continue?", "Continue", "Quite")
+        if ret == 1:
+            return 
+        
+        try:
+            with hx_progress.progress(1, "Loading model") as progress:
+                if not self.model_loaded:
+                    # Crop image transform
+                    self.transforms, self.er_transforms = \
+                        get_transforms(float(self.resolution.texts[0].value))
+                    # print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), \
+                    #     "| DeepContact load Model Begin!")
+                    # 加载模型
+                    self.mito_model = load_mito_model(self.mito_weight.filenames)
+                    self.er_model = load_er_model(self.er_weight.filenames)
+                    # print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), \
+                    #     "| DeepContact load Model OK!")
+                    
+                    # ER的模型是基于catalyst框架的，需要一个runner
+                    device = cutils.get_device()
+                    self.myrunner = MyRunner(device=device, input_key="image", \
+                        input_target_key="mask")
+                    
+                    self.model_loaded = True
+        
+                progress.set_text("Prediction is running")
+
+                try_again = 0
+                try_max = 2
+                while try_again < try_max:
+                    try:
+                        # 只处理单张的情况
+                        if not is_batch:
+                            try:
+                                augmented = self.transforms(image=image)
+                            except:
+                                print("====>> image size is too small: ", image.shape)
+                                hx_message.info("image size is too small: " + image.shape)
+                                augmented = albu.RandomCrop(1024, 1024)(image=image)
+                            aug_image = augmented['image']
+                            
+                            output_name = os.path.abspath(os.path.join( \
+                                output_dir, self.data.source().name + 'output.png')) if is_output else None
+                            ret = self.mito_er(aug_image, output_name)
+                            output = ret['output']
+                        else:
+                            result, result_dist = {}, {}
+                            for image_id in dataset_val.image_ids:
+                                file_path = dataset_val.image_info[image_id]['path']
+                                file_name = os.path.split(file_path)[1][:-4]
+                                print(f'Proprocess {file_name}...')
+                                progress.set_text(f'Proprocess {file_name}...')
+
+                                # 用于统计多张图算出来结果的均值
+                                contact = Contact(file_name)
+                                all_distmap = DistMap(file_name, 10)
+                                result[file_name], result_dist[file_name] = contact, all_distmap
+
+                                # 读取图片
+                                image = dataset_val.load_image(image_id)
+                                
+                                try:
+                                    augmented = self.transforms(image=image)
+                                except:
+                                    print("====>> image size is too small: ", image.shape)
+                                    hx_message.info("image size is too small: " + image.shape)
+                                    augmented = albu.RandomCrop(1024, 1024)(image=image)
+                                aug_image = augmented['image']
+                                
+                                output_name = os.path.abspath(os.path.join(output_dir, file_name + '.png'))
+                                ret = self.mito_er(aug_image, output_name)
+                                
+                                output = ret['output']
+                                contact.update(ret['res'])
+                                all_distmap.update(ret['distmap'])
+                                
+                            save_res(result, result_dist, output_dir)
+                                
+                    except Exception as e:
+                        try_again = try_again + 1
+                        if try_again == try_max:
+                            raise
+                        print('The following error was encountered: {0}\n'.format(str(e)))
+
+                    else:
+                        try_again = try_max
+                        
+            if not is_batch:        
+                outputs = []
+                for resultIndex in range(len(output)):
+                    #check what should be the output type
+                    output_type = 'HxUniformScalarField3'
+                    # output_type = 'HxScalarField3'
+
+                    # Check if we need to create a new result or re-use an existing one.
+                    if (len(self.results) < resultIndex + 1) or self.results[resultIndex] is None or output_type != self.results[resultIndex]._cpp_classname:
+                        output_field = hx_object_factory.create(output_type)
+                        composeLabelCmd = output_field.name + " composeLabel " + self.data.source().name + " predict"
+                        if resultIndex > 0:
+                            composeLabelCmd += str(resultIndex)
+                        _tcl_interp(composeLabelCmd)
+                    else:
+                        output_field = self.results[resultIndex]
+
+                    #set the array and properties of the output field
+                    output_field.set_array(output[resultIndex])
+                    output_field.bounding_box = self.data.source().bounding_box
+
+                    outputs.append(output_field)
+
+                #Assign all results
+                self.results = outputs
+
+        except Exception as e:
+            print("Error : Prediction failed: ",str(e))
+            
+    
+    def mito_er(self, aug_image, output_name=None):
+        mito_image = deepcopy(aug_image)
+        vis_image = deepcopy(aug_image)
+        
+        # print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "| Mito Detect Begin!")
+        r = self.mito_model.detect([mito_image], verbose=0)[0]
+        # print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "| Mito Detect  OK!")
+
+        # 预测ER，需要先normalize图片，再转换成Tensor
+        # print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "| ER Detect Begin!")
+        er_image = self.er_transforms(image=aug_image)['image'].unsqueeze(0)
+        er_batch = {"image": er_image.to(cutils.get_device())}
+        er_pred = predict_er(self.myrunner, self.er_model, er_batch)
+        # print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "| ER Detect OK!")
+
+        # print("Mito: ", r['masks'].shape)
+        # print("ER:", er_pred.shape)
+        # 将Mito的结果呈现在一张图上
+        mito_pred, ratio1, ratio2 = construct_mito_pred(mito_image, r, er_pred)
+
+        # 计算contact
+        # [mito_num, mito_len, cont_len, cont_num, er_len, er_elong, vis, distmap]
+        # print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "| Contact Begin!")
+        res = calContactDist_er_elongation(mito_pred, er_pred, vis_image, 10)
+        # print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "| Contact OK!")
+
+        print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), \
+            f'|Mito:{res[0]}| Contact:{res[3]}| Mito_len:{res[1]}| Contact_len:{res[2]}' +
+            f'| ER_len:{res[4]}| ER_Elongation:{res[5]:.2f}| Area_Perimeter: {ratio1:.2f}' +
+            f'| Form_Factor: {ratio2:.2f}')
+
+        output = my_visualize(vis_image, r, er_pred, res[-2], output_name)
+        # print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "| Visualize OK!")
+        
+        res_con = res[:-2]
+        res_con.extend([ratio1, ratio2])
+                
+        return {'res': res_con, 'output': output, 'distmap': res[-1]}
+    
+
+    def get_path_filename_ext(self, file_path):
+        file_folder = os.path.dirname(file_path)
+        file_name = os.path.splitext(os.path.basename(file_path))[0]
+        file_ext = os.path.splitext(os.path.basename(file_path))[1]
+        return file_folder, file_name, file_ext
+
+        

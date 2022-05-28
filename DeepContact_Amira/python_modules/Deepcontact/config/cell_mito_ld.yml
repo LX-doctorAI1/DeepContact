@@ -1,0 +1,17 @@
+model: cell
+
+mitomodel: checkpoint/cell_mito.h5
+ermodel: checkpoint/cell_er.pth
+ldmodel: checkpoint/cell_ld.h5
+# 要处理的数据集JSON文件保存位置
+#datadir: /data/yangshuxin/data/tissues/json/test/20210111_3Label_ER-Mito-LD
+datadir: /data/yangshuxin/data/cell/json/test/debug
+
+outputdir: ./results
+
+resolution: 5.0
+
+threshold: 0.3
+px: 10
+
+repeat_num: 5
