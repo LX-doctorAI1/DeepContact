@@ -2,15 +2,16 @@
 
 **DeepContact software** is the tensorflow/keras and Pytorch implementation for high throughput quantification of membrane contact site. This repository is developed based on the under review paper [**DeepContact: High throughput quantification of membrane contact site based on electron microscopy imaging**](https://).<br>
 
-Author: Liqing Liu<sup>1†</sup>, Shuxin Yang<sup>2,5†</sup>, Yang Liu<sup>2,5</sup>,Xixia Li<sup>6</sup>, Junjie Hu<sup>1,4*</sup>, Li Xiao<sup>2,5,7*</sup> and Tao Xu<sup>1,3,4*</sup>
+Author: Liqing Liu<sup>1,5†</sup>, Shuxin Yang<sup>2,4†</sup>, Yang Liu<sup>2,4</sup>,Xixia Li<sup>5</sup>, Junjie Hu<sup>1,6*</sup>, Li Xiao<sup>2,3,4*</sup> and Tao Xu<sup>1,6,7*</sup>
 
 <sup>1</sup>National Laboratory of Biomacromolecules, Institute of Biophysics, Chinese Academy of Sciences, Beijing, China. \
 <sup>2</sup>Key Laboratory of Intelligent Information Processing, Institute of Computing Technology, Chinese Academy of Sciences, Beijing, China.\
-<sup>3</sup>Bioland Laboratory (Guangzhou Regenerative Medicine and Health Guangdong Laboratory), Guangzhou, Guangdong, China.\
-<sup>4</sup>College of Life Science, University of Chinese Academy of Sciences, Beijing, China.\
-<sup>5</sup>School of Computer and Control Engineering, University of Chinese Academy of Sciences, Beijing, China.\
-<sup>6</sup>Center for Biological Imaging, Institute of Biophysics, Chinese Academy of Sciences, Beijing, China.\
-<sup>7</sup>Ningbo HuaMei Hospital, University of Chinese Academy of Sciences, Ningbo, China.\
+<sup>3</sup>Ningbo HuaMei Hospital, University of Chinese Academy of Sciences, Ningbo, China.\
+<sup>4</sup>School of Computer and Control Engineering, University of Chinese Academy of Sciences, Beijing, China.\
+<sup>5</sup>Center for Biological Imaging, Institute of Biophysics, Chinese Academy of Sciences, Beijing, China.\
+<sup>6</sup>College of Life Science, University of Chinese Academy of Sciences, Beijing, China.\
+<sup>7</sup>School of Biomedical Engineering, Guangzhou Medical University, Guangzhou, Guangdong, China.\
+
 <sup>†</sup>These authors contributed equally: Liqing Liu, Shuxin Yang. \
 <sup>*</sup>Correspondence to: xutao@ibp.ac.cn; xiaoli@ict.ac.cn; huj@ibp.ac.cn.
 
