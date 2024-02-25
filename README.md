@@ -13,7 +13,7 @@ Author: Liqing Liu<sup>1,5†</sup>, Shuxin Yang<sup>2,4†</sup>, Yang Liu<sup>
 <sup>7</sup>School of Biomedical Engineering, Guangzhou Medical University, Guangzhou, Guangdong, China.\
 
 <sup>†</sup>These authors contributed equally: Liqing Liu, Shuxin Yang. \
-<sup>*</sup>Correspondence to: xutao@ibp.ac.cn; xiaoli@ict.ac.cn; huj@ibp.ac.cn.
+<sup>*</sup>Correspondence to: xutao@ibp.ac.cn; andrewxiao@bupt.edu.cn; huj@ibp.ac.cn.
 
 ## Abstract
 > Membrane contact site (MCS)-mediated organelle interactions plays essential roles in the cell. Quantitative analysis of the MCS reveals vital clues for cellular responses under various physiological and pathological conditions. However, an efficient tool is yet lacking. Here, we developed “DeepContact”, a deep learning protocol for optimizing organelle segmentation and contact analysis based on label-free electron microscopy (EM). DeepContact presents high efficiency and flexibility in interactive visualizations, accommodating new morphologies of organelles and recognizing contacts in versatile width ranges, which enables statistical analysis of various types of MCSs in multiple systems. DeepContact profiled previously unidentified coordinative rearrangements of MCS types in combined nutritional conditionings of cultured cells. DeepContact also unveiled a subtle wave of ER-mitochondrial entanglement in the Sertoli cell during the seminiferous epithelial cycle, indicating its potential in bridging MCS dynamics to physiological and pathological processes.
